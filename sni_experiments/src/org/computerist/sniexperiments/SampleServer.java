@@ -4,20 +4,51 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.security.InvalidKeyException;
+import java.security.KeyManagementException;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.SignatureException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
+import java.util.ArrayList;
+import java.util.Collection;
 
+import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.KeyStoreBuilderParameters;
+import javax.net.ssl.SNIMatcher;
+import javax.net.ssl.SNIServerName;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
+import javax.net.ssl.StandardConstants;
 import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509KeyManager;
 
 import org.parosproxy.paros.security.SslCertificateService;
 import org.parosproxy.paros.security.SslCertificateServiceImpl;
 import org.zaproxy.zap.extension.dynssl.SslCertificateUtils;
 
 public class SampleServer {
+  
+  private static RefreshingKeyManager reInit(SSLContext sslContext, KeyStore ks) throws NoSuchAlgorithmException, UnrecoverableKeyException, KeyStoreException, KeyManagementException{
+    
+    KeyManagerFactory keyFactory = KeyManagerFactory
+      .getInstance("SunX509");
+    keyFactory.init(ks, SslCertificateService.PASSPHRASE);
+
+    System.out.println("there are "+keyFactory.getKeyManagers().length+" managers");
+    RefreshingKeyManager mgr = new RefreshingKeyManager((X509KeyManager) keyFactory.getKeyManagers()[0]);
+    KeyManager[] managers = {mgr};
+    // TODO: experiment with custom KeyManagers
+    sslContext.init(managers, null, null);
+    return mgr;
+  }
 
   public static void main(String[] args) {
     System.out.println("Starting server");
@@ -30,32 +61,50 @@ public class SampleServer {
         .getService();
       scs.initializeRootCA(caks);
 
-      KeyStore ks = scs.createCertForHost("test1.computerist.org");
-
-      KeyManagerFactory keyFactory = KeyManagerFactory
-        .getInstance("SunX509");
-      keyFactory.init(ks, SslCertificateService.PASSPHRASE);
-      TrustManagerFactory trustFactory = TrustManagerFactory
-        .getInstance("SunX509");
-      trustFactory.init(ks);
+      KeyStore ks = scs.createCertForHost("some.sample.domain.example.com");
 
       SSLContext sslContext = SSLContext.getInstance("TLS");
-      sslContext.init(keyFactory.getKeyManagers(),
-          trustFactory.getTrustManagers(), null);
+      RefreshingKeyManager mgr = reInit(sslContext, ks);
 
       SSLServerSocketFactory sslServerSocketFactory = sslContext
         .getServerSocketFactory();
 
       SSLServerSocket sslServerSocket = (SSLServerSocket) sslServerSocketFactory
         .createServerSocket(8443);
+      
       while (true) {
         final SSLSocket sslSocket = (SSLSocket) sslServerSocket
           .accept();
 
-        String[] suites = sslSocket.getEnabledCipherSuites();
-        for (String suite : suites) {
-          System.out.println(suite);
-        }
+        SSLParameters params = sslSocket.getSSLParameters();
+        
+        SNIMatcher matcher = new SNIMatcher(StandardConstants.SNI_HOST_NAME){
+          @Override
+          public boolean matches(SNIServerName serverName) {
+            String hostName = new String(serverName.getEncoded());
+            System.out.println(hostName);
+            try {
+              if(!ks.containsAlias(hostName)){
+                System.out.println(hostName+" is a new alias; adding");
+                scs.createCertForHost(hostName);
+              }
+              /* 
+               * perhaps, since our key manager is magic, we can avoid re-initing the whole context and just 
+               * replace its mgr attribute with a new one from our KMF(which is, re-init-ed)
+               */
+              RefreshingKeyManager mgr2 = reInit(sslContext, ks);
+              mgr2.switchAlias(hostName);
+            } catch (Exception e) {
+              // TODO Auto-generated catch block
+              e.printStackTrace();
+            } 
+            return true;
+          }
+        };
+        Collection<SNIMatcher> matchers = new ArrayList<>(1);
+        matchers.add(matcher);
+        params.setSNIMatchers(matchers);
+        sslSocket.setSSLParameters(params);
 
         Thread requestThread = new Thread(new Runnable() {
           @Override
