@@ -72,7 +72,10 @@ public class SampleServer {
       SSLContext clientContext = SSLContext.getInstance("TLS");
       TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
       tmf.init(caks);
-      clientContext.init(null, tmf.getTrustManagers(), null);
+      
+      KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+      kmf.init(caks, SslCertificateService.PASSPHRASE);
+      clientContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
       SSLSocketFactory clientSSLSocketFactory = clientContext.getSocketFactory();
 
       SSLServerSocketFactory sslServerSocketFactory = sslContext
