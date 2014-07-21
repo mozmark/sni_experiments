@@ -28,10 +28,6 @@ import javax.net.ssl.StandardConstants;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509KeyManager;
 
-import org.parosproxy.paros.security.SslCertificateService;
-import org.parosproxy.paros.security.SslCertificateServiceImpl;
-import org.zaproxy.zap.extension.dynssl.SslCertificateUtils;
-
 public class SNITerminator {
 	private InetAddress listenAddress;
 	private int listenPort;
@@ -54,7 +50,7 @@ public class SNITerminator {
 			KeyManagementException {
 
 		KeyManagerFactory keyFactory = KeyManagerFactory.getInstance("SunX509");
-		keyFactory.init(ks, SslCertificateService.PASSPHRASE);
+		keyFactory.init(ks, FixedSslCertificateService.PASSPHRASE);
 
 		System.out.println("there are " + keyFactory.getKeyManagers().length
 				+ " managers");
@@ -69,9 +65,9 @@ public class SNITerminator {
 	public void start() {
 		System.out.println("Starting server");
 		try {
-			KeyStore caks = SslCertificateUtils.string2Keystore(this.keystoreString);
+			KeyStore caks = ZapSslCertificateUtils.string2Keystore(this.keystoreString);
 
-			SslCertificateServiceImpl scs = (SslCertificateServiceImpl) SslCertificateServiceImpl
+			FixedSslCertificateService scs = (FixedSslCertificateService) FixedSslCertificateService
 					.getService();
 			scs.initializeRootCA(caks);
 
@@ -87,7 +83,7 @@ public class SNITerminator {
 			tmf.init(caks);
 
 			KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
-			kmf.init(caks, SslCertificateService.PASSPHRASE);
+			kmf.init(caks, FixedSslCertificateService.PASSPHRASE);
 			clientContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(),
 					null);
 			SSLSocketFactory clientSSLSocketFactory = clientContext
