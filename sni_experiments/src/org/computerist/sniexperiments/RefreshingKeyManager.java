@@ -85,4 +85,8 @@ public class RefreshingKeyManager implements X509KeyManager {
   public void switchAlias(String hostName) {
     this.alias = hostName;
   }
+  
+  public String getAlias(){
+    return this.alias;
+  }
 }
