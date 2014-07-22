@@ -21,12 +21,6 @@ import java.security.cert.CertificateException;
  */
 public class ZAPSslToolsWrapper {
   private FixedSslCertificateService fixedService;
-
-  {
-    // TODO: load and test ZAP classes - if they don't work
-    // fall back on hacked local versions
-  }
-
   private static ZAPSslToolsWrapper singleton = new ZAPSslToolsWrapper();
 
   private ZAPSslToolsWrapper() {
@@ -49,23 +43,23 @@ public class ZAPSslToolsWrapper {
     this.fixedService.createCertForHost(hostName);
   }
 
-  public static final KeyStore createRootCA() throws NoSuchAlgorithmException {
+  public KeyStore createRootCA() throws NoSuchAlgorithmException {
     return ZapSslCertificateUtils.createRootCA();
   }
 
-  public static final String keyStore2String(KeyStore keystore)
+  public String keyStore2String(KeyStore keystore)
       throws KeyStoreException, NoSuchAlgorithmException, CertificateException,
       IOException {
     return ZapSslCertificateUtils.keyStore2String(keystore);
   }
 
-  public static final KeyStore string2Keystore(String str)
+  public KeyStore string2Keystore(String str)
       throws KeyStoreException, NoSuchAlgorithmException, CertificateException,
       IOException {
     return ZapSslCertificateUtils.string2Keystore(str);
   }
 
-  public static final char[] getPassphrase() {
+  public char[] getPassphrase() {
     return FixedSslCertificateService.PASSPHRASE;
   }
 

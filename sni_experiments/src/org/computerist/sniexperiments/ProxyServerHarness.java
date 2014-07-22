@@ -29,20 +29,20 @@ public class ProxyServerHarness {
       InetAddress proxyAddress = Inet4Address.getLocalHost();
       int proxyPort = 8080;
 
-      KeyStore caks = ZAPSslToolsWrapper.string2Keystore(ZAP_CA);
+      KeyStore caks = ZAPSslToolsWrapper.getService().string2Keystore(ZAP_CA);
 
       SSLContext clientContext = SSLContext.getInstance("TLS");
       TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
       tmf.init(caks);
 
       KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
-      kmf.init(caks, ZAPSslToolsWrapper.getPassphrase());
+      kmf.init(caks, ZAPSslToolsWrapper.getService().getPassphrase());
       clientContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
       SSLSocketFactory clientSSLSocketFactory = clientContext
           .getSocketFactory();
 
       SNITerminator terminator = new SNITerminator(caks,
-          ZAPSslToolsWrapper.getPassphrase(), listenAddress, listenPort,
+          ZAPSslToolsWrapper.getService().getPassphrase(), listenAddress, listenPort,
           new ProxyForwarder(proxyAddress, proxyPort, clientSSLSocketFactory));
       terminator.start();
 

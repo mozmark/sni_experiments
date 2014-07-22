@@ -22,13 +22,12 @@ public class TCPServerHarness {
       InetAddress serverAddress = Inet4Address.getLocalHost();
       int serverPort = 80;
 
-      KeyStore caks = ZAPSslToolsWrapper.string2Keystore(ZAP_CA);
+      KeyStore caks = ZAPSslToolsWrapper.getService().string2Keystore(ZAP_CA);
 
       SNITerminator terminator = new SNITerminator(caks,
-          ZAPSslToolsWrapper.getPassphrase(), listenAddress, listenPort,
+          ZAPSslToolsWrapper.getService().getPassphrase(), listenAddress, listenPort,
           new SingleTCPForwarder(serverAddress, serverPort));
       terminator.start();
-
     } catch (UnknownHostException uhe) {
       uhe.printStackTrace();
     } catch (KeyStoreException e) {
