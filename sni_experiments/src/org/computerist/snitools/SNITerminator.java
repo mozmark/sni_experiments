@@ -123,11 +123,11 @@ public class SNITerminator {
       exception.printStackTrace();
     }
   }
-  
+
   public void stop() {
     this.serverRunning = false;
   }
-  
+
   public boolean isRunning() {
     return this.serverRunning;
   }
