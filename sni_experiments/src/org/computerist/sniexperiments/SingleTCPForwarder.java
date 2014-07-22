@@ -21,7 +21,20 @@ public class SingleTCPForwarder extends BaseStreamForwarder {
       String host) {
     try {
       Socket socket = new Socket(this.serverAddress, this.serverPort);
-      this.connectStreams(inputStream, outputStream, socket.getInputStream(), socket.getOutputStream());
+      Tidier tidier = new Tidier(){
+        @Override
+        public void tidyUp() {
+          if(null!=socket && !socket.isClosed()) {
+            try {
+              socket.close();
+            } catch (IOException e) {
+              e.printStackTrace();
+            }
+          }
+        }
+        
+      };
+      this.connectStreams(inputStream, outputStream, socket.getInputStream(), socket.getOutputStream(), tidier);
     } catch (IOException e) {
       e.printStackTrace();
     }

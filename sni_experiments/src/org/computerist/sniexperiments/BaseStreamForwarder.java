@@ -8,7 +8,7 @@ public abstract class BaseStreamForwarder implements Forwarder {
   static int buf_size=4096;
   
   protected void connectStreams(InputStream serverIn, OutputStream serverOut,
-      InputStream clientIn, OutputStream clientOut) {
+      InputStream clientIn, OutputStream clientOut, Tidier tidier) {
     Thread upThread = new Thread(new Runnable() {
       @Override
       public void run() {
@@ -20,6 +20,8 @@ public abstract class BaseStreamForwarder implements Forwarder {
           }
         } catch (IOException e) {
           e.printStackTrace();
+        } finally {
+          tidier.tidyUp();
         }
       }
     });
@@ -35,7 +37,8 @@ public abstract class BaseStreamForwarder implements Forwarder {
             serverOut.write(buf, 0, read);
           }
         } catch (IOException e) {
-          e.printStackTrace();
+        } finally {
+          tidier.tidyUp();
         }
       }
     });

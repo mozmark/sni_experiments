@@ -32,8 +32,20 @@ public class ProxyForwarder extends BaseStreamForwarder{
 
     final OutputStream clientOut = socket.getOutputStream();
     final InputStream clientIn = socket.getInputStream();
-
-    connectStreams(serverIn, serverOut, clientIn, clientOut);
+    Tidier tidier = new Tidier(){
+      @Override
+      public void tidyUp() {
+        if(null!=socket && !socket.isClosed()) {
+          try {
+            socket.close();
+          } catch (IOException e) {
+            e.printStackTrace();
+          }
+        }
+      }
+      
+    };
+    connectStreams(serverIn, serverOut, clientIn, clientOut, tidier);
     } catch (IOException e1) {
       e1.printStackTrace();
     }
