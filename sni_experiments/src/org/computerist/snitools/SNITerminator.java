@@ -25,9 +25,10 @@ public class SNITerminator {
   private Forwarder forwarder;
   private KeyStore caks;
   private char[] keyStorePass;
+  private boolean serverRunning;
 
-  public SNITerminator(KeyStore keyStore, char[] keyStorePass, InetAddress listenAddress,
-      int listenPort, Forwarder forwarder) {
+  public SNITerminator(KeyStore keyStore, char[] keyStorePass,
+      InetAddress listenAddress, int listenPort, Forwarder forwarder) {
     this.keyStorePass = keyStorePass;
     this.listenAddress = listenAddress;
     this.listenPort = listenPort;
@@ -44,64 +45,89 @@ public class SNITerminator {
       KeyStore ks = scs.getHostKeyStore();
 
       SSLContext sslContext = SSLContext.getInstance("TLS");
-      RefreshingKeyManager mgr = new RefreshingKeyManager(ks, keyStorePass, sslContext);
+      RefreshingKeyManager mgr = new RefreshingKeyManager(ks, keyStorePass,
+          sslContext);
 
       SSLServerSocketFactory sslServerSocketFactory = sslContext
           .getServerSocketFactory();
       SSLServerSocket sslServerSocket = (SSLServerSocket) sslServerSocketFactory
           .createServerSocket(this.listenPort, 10, this.listenAddress);
 
-      while (true) {
-        final SSLSocket sslSocket = (SSLSocket) sslServerSocket.accept();
+      Thread serverThread = new Thread(new Runnable() {
+        @Override
+        public void run() {
+          while (serverRunning) {
+            try {
+              final SSLSocket sslSocket = (SSLSocket) sslServerSocket.accept();
 
-        SSLParameters params = sslSocket.getSSLParameters();
+              SSLParameters params = sslSocket.getSSLParameters();
 
-        SNIMatcher matcher = new SNIMatcher(StandardConstants.SNI_HOST_NAME) {
-          @Override
-          public boolean matches(SNIServerName serverName) {
-            synchronized (sslServerSocket) {
-              String hostName = new String(serverName.getEncoded());
-              try {
-                if (!ks.containsAlias(hostName)) {
-                  System.out.println(hostName + " is a new alias; adding");
-                  scs.createCertForHost(hostName);
-                  mgr.refresh();
+              SNIMatcher matcher = new SNIMatcher(
+                  StandardConstants.SNI_HOST_NAME) {
+                @Override
+                public boolean matches(SNIServerName serverName) {
+                  synchronized (sslServerSocket) {
+                    String hostName = new String(serverName.getEncoded());
+                    try {
+                      if (!ks.containsAlias(hostName)) {
+                        System.out
+                            .println(hostName + " is a new alias; adding");
+                        scs.createCertForHost(hostName);
+                        mgr.refresh();
+                      }
+                      mgr.switchAlias(hostName);
+                    } catch (Exception e) {
+                      e.printStackTrace();
+                    }
+                  }
+                  return true;
                 }
-                mgr.switchAlias(hostName);
-              } catch (Exception e) {
-                e.printStackTrace();
-              }
+              };
+              Collection<SNIMatcher> matchers = new ArrayList<>(1);
+              matchers.add(matcher);
+              params.setSNIMatchers(matchers);
+              sslSocket.setSSLParameters(params);
+
+              final InputStream serverIn = sslSocket.getInputStream();
+              final OutputStream serverOut = sslSocket.getOutputStream();
+
+              String host = mgr.getAlias();
+
+              Tidier tidier = new Tidier() {
+                @Override
+                public void tidyUp() {
+                  if (null != sslSocket && !sslSocket.isClosed()) {
+                    try {
+                      sslSocket.close();
+                    } catch (IOException e) {
+                      e.printStackTrace();
+                    }
+                  }
+                }
+              };
+              forwarder.forward(serverIn, serverOut, host, tidier);
+            } catch (IOException e) {
+              e.printStackTrace();
             }
-            return true;
           }
-        };
-        Collection<SNIMatcher> matchers = new ArrayList<>(1);
-        matchers.add(matcher);
-        params.setSNIMatchers(matchers);
-        sslSocket.setSSLParameters(params);
-
-        final InputStream serverIn = sslSocket.getInputStream();
-        final OutputStream serverOut = sslSocket.getOutputStream();
-
-        String host = mgr.getAlias();
-
-        Tidier tidier = new Tidier(){
-          @Override
-          public void tidyUp() {
-            if(null!=sslSocket && !sslSocket.isClosed()) {
-              try {
-                sslSocket.close();
-              } catch (IOException e) {
-                e.printStackTrace();
-              }
-            }
+          try {
+            sslServerSocket.close();
+          } catch (IOException e) {
+            e.printStackTrace();
           }
-        };
-        
-        forwarder.forward(serverIn, serverOut, host, tidier);
-      }
+        }
+      });
+      serverThread.start();
     } catch (Exception exception) {
       exception.printStackTrace();
     }
+  }
+  
+  public void stop() {
+    this.serverRunning = false;
+  }
+  
+  public boolean isRunning() {
+    return this.serverRunning;
   }
 }
