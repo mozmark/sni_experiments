@@ -16,6 +16,10 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 
+import org.computerist.snitools.ProxyForwarder;
+import org.computerist.snitools.SNITerminator;
+import org.computerist.ssltools.zap.ZAPSslToolsWrapper;
+
 public class ProxyServerHarness {
   public static void main(String[] args) {
     try {
@@ -25,14 +29,14 @@ public class ProxyServerHarness {
       InetAddress proxyAddress = Inet4Address.getLocalHost();
       int proxyPort = 8080;
 
-      KeyStore caks = ZapSslCertificateUtils.string2Keystore(ZAP_CA);
+      KeyStore caks = ZAPSslToolsWrapper.string2Keystore(ZAP_CA);
 
       SSLContext clientContext = SSLContext.getInstance("TLS");
       TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
       tmf.init(caks);
 
       KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
-      kmf.init(caks, FixedSslCertificateService.PASSPHRASE);
+      kmf.init(caks, ZAPSslToolsWrapper.getPassphrase());
       clientContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
       SSLSocketFactory clientSSLSocketFactory = clientContext
           .getSocketFactory();

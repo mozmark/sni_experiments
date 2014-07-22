@@ -17,7 +17,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.computerist.sniexperiments;
+package org.computerist.ssltools.zap;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -73,8 +73,8 @@ import org.bouncycastle.x509.extension.SubjectKeyIdentifierStructure;
  * @see AttrCertExample how to manage CAs and stuff
  * @see CachedSslCertifificateServiceImpl for a cached SslCertificateService
  */
-public class FixedSslCertificateService {
-  static char[] PASSPHRASE = "0w45P.Z4p".toCharArray();
+class FixedSslCertificateService {
+  public static char[] PASSPHRASE = "0w45P.Z4p".toCharArray();
   static String ZAPROXY_JKS_ALIAS = "owasp_zap_root_ca";
 
   private X509Certificate caCert = null;

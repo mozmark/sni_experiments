@@ -1,4 +1,4 @@
-package org.computerist.sniexperiments;
+package org.computerist.ssltools.zap;
 /*
  * Zed Attack Proxy (ZAP) and its related class files.
  *
@@ -58,7 +58,7 @@ import org.bouncycastle.x509.extension.SubjectKeyIdentifierStructure;
 /**
  * @author MaWoKi
  */
-public class ZapSslCertificateUtils {
+class ZapSslCertificateUtils {
 
 	private static final long DEFAULT_VALID_DAYS = 365L;
 

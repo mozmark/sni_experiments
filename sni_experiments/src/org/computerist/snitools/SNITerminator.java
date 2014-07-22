@@ -1,4 +1,4 @@
-package org.computerist.sniexperiments;
+package org.computerist.snitools;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -15,6 +15,8 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.StandardConstants;
+
+import org.computerist.ssltools.zap.ZAPSslToolsWrapper;
 
 public class SNITerminator {
   private InetAddress listenAddress;
@@ -33,15 +35,15 @@ public class SNITerminator {
   public void start() {
     System.out.println("Starting server");
     try {
-      FixedSslCertificateService scs = (FixedSslCertificateService) FixedSslCertificateService
-          .getService();
+      ZAPSslToolsWrapper scs = ZAPSslToolsWrapper.getService();
       scs.initializeRootCA(caks);
 
       KeyStore ks = scs.getHostKeyStore();
 
       SSLContext sslContext = SSLContext.getInstance("TLS");
+      // TODO: Passphrase should be passed in, the following is a bug
       RefreshingKeyManager mgr = new RefreshingKeyManager(ks,
-          FixedSslCertificateService.PASSPHRASE, sslContext);
+    		  ZAPSslToolsWrapper.getPassphrase(), sslContext);
 
       SSLServerSocketFactory sslServerSocketFactory = sslContext
           .getServerSocketFactory();

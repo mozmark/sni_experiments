@@ -1,4 +1,4 @@
-package org.computerist.sniexperiments;
+package org.computerist.snitools;
 
 public interface Tidier {
   public void tidyUp();

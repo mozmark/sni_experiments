@@ -1,4 +1,4 @@
-package org.computerist.sniexperiments;
+package org.computerist.snitools;
 
 import java.io.IOException;
 import java.io.InputStream;

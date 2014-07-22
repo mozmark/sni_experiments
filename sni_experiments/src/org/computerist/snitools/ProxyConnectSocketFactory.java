@@ -1,4 +1,4 @@
-package org.computerist.sniexperiments;
+package org.computerist.snitools;
 
 /*
  * Get a socket via HTTP CONNECT.

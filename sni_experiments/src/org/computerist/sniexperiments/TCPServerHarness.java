@@ -9,6 +9,10 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 
+import org.computerist.snitools.SNITerminator;
+import org.computerist.snitools.SingleTCPForwarder;
+import org.computerist.ssltools.zap.ZAPSslToolsWrapper;
+
 public class TCPServerHarness {
   public static void main(String args[]) {
     try {
@@ -18,7 +22,7 @@ public class TCPServerHarness {
       InetAddress serverAddress = Inet4Address.getLocalHost();
       int serverPort = 80;
 
-      KeyStore caks = ZapSslCertificateUtils.string2Keystore(ZAP_CA);
+      KeyStore caks = ZAPSslToolsWrapper.string2Keystore(ZAP_CA);
 
       SNITerminator terminator = new SNITerminator(caks, listenAddress,
           listenPort, new SingleTCPForwarder(serverAddress, serverPort));

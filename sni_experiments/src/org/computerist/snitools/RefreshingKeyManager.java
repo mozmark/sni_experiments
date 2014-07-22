@@ -1,4 +1,4 @@
-package org.computerist.sniexperiments;
+package org.computerist.snitools;
 
 import java.net.Socket;
 import java.security.KeyManagementException;
