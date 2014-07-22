@@ -57,138 +57,155 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.x509.extension.SubjectKeyIdentifierStructure;
 
 /**
- * This is a singleton class. Use {@link #getService()} method to
- * obtain a service bean. This implementation is totally unbuffered and creates
- * every time you call {@link #createCertForHost(String)} a new certificate.
- * If you want to have a cached solution, have a look at {@link CachedSslCertifificateServiceImpl}.
- * This class is designed to be thread safe.
+ * This is a singleton class. Use {@link #getService()} method to obtain a
+ * service bean. This implementation is totally unbuffered and creates every
+ * time you call {@link #createCertForHost(String)} a new certificate. If you
+ * want to have a cached solution, have a look at
+ * {@link CachedSslCertifificateServiceImpl}. This class is designed to be
+ * thread safe.
  *
  * A word about serial numbers ... There have to be different serial numbers
- * generated, cause if multiple certificates with different finger prints
- * do have the same serial from the same CA, the browser gets crazy.
- * At least, Firefox v3.x does.
+ * generated, cause if multiple certificates with different finger prints do
+ * have the same serial from the same CA, the browser gets crazy. At least,
+ * Firefox v3.x does.
  *
  * @author MaWoKi
  * @see AttrCertExample how to manage CAs and stuff
  * @see CachedSslCertifificateServiceImpl for a cached SslCertificateService
  */
 public class FixedSslCertificateService {
-	static char[] PASSPHRASE = "0w45P.Z4p".toCharArray();
-	static String ZAPROXY_JKS_ALIAS = "owasp_zap_root_ca";
-	
-	private X509Certificate caCert = null;
-	private PublicKey caPubKey = null;
-	private PrivateKey caPrivKey = null;
+  static char[] PASSPHRASE = "0w45P.Z4p".toCharArray();
+  static String ZAPROXY_JKS_ALIAS = "owasp_zap_root_ca";
 
-	private final AtomicLong serial;
-	private KeyStore userKs;
+  private X509Certificate caCert = null;
+  private PublicKey caPubKey = null;
+  private PrivateKey caPrivKey = null;
 
-	private static final FixedSslCertificateService singleton = new FixedSslCertificateService();
+  private final AtomicLong serial;
+  private KeyStore userKs;
 
-	private FixedSslCertificateService() {
-		Security.addProvider(new BouncyCastleProvider());
-		final Random rnd = new Random();
-		rnd.setSeed(System.currentTimeMillis());
-		// prevent browser certificate caches, cause of doubled serial numbers
-		// using 48bit random number
-		long sl = ((long)rnd.nextInt()) << 32 | (rnd.nextInt() & 0xFFFFFFFFL);
-		// let reserve of 16 bit for increasing, serials have to be positive
-		sl = sl & 0x0000FFFFFFFFFFFFL;
-		this.serial = new AtomicLong(sl);
-		try {
-			userKs = KeyStore.getInstance("JKS");
-	        userKs.load(null, null);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
+  private static final FixedSslCertificateService singleton = new FixedSslCertificateService();
 
+  private FixedSslCertificateService() {
+    Security.addProvider(new BouncyCastleProvider());
+    final Random rnd = new Random();
+    rnd.setSeed(System.currentTimeMillis());
+    // prevent browser certificate caches, cause of doubled serial numbers
+    // using 48bit random number
+    long sl = ((long) rnd.nextInt()) << 32 | (rnd.nextInt() & 0xFFFFFFFFL);
+    // let reserve of 16 bit for increasing, serials have to be positive
+    sl = sl & 0x0000FFFFFFFFFFFFL;
+    this.serial = new AtomicLong(sl);
+    try {
+      userKs = KeyStore.getInstance("JKS");
+      userKs.load(null, null);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
 
-	public synchronized void initializeRootCA(KeyStore keystore) throws KeyStoreException, UnrecoverableKeyException, NoSuchAlgorithmException {
-		if (keystore == null) {
-			this.caCert = null;
-			this.caPrivKey = null;
-			this.caPubKey = null;
-		} else {
-			this.caCert = (X509Certificate)keystore.getCertificate(ZAPROXY_JKS_ALIAS);
-			this.caPrivKey = (RSAPrivateKey) keystore.getKey(ZAPROXY_JKS_ALIAS, PASSPHRASE);
-			this.caPubKey = this.caCert.getPublicKey();
-		}
-	}
+  public synchronized void initializeRootCA(KeyStore keystore)
+      throws KeyStoreException, UnrecoverableKeyException,
+      NoSuchAlgorithmException {
+    if (keystore == null) {
+      this.caCert = null;
+      this.caPrivKey = null;
+      this.caPubKey = null;
+    } else {
+      this.caCert = (X509Certificate) keystore
+          .getCertificate(ZAPROXY_JKS_ALIAS);
+      this.caPrivKey = (RSAPrivateKey) keystore.getKey(ZAPROXY_JKS_ALIAS,
+          PASSPHRASE);
+      this.caPubKey = this.caCert.getPublicKey();
+    }
+  }
 
-	public KeyStore createCertForHost(String hostname) throws NoSuchAlgorithmException, InvalidKeyException, CertificateException, NoSuchProviderException, SignatureException, KeyStoreException, IOException, UnrecoverableKeyException {
+  public KeyStore createCertForHost(String hostname)
+      throws NoSuchAlgorithmException, InvalidKeyException,
+      CertificateException, NoSuchProviderException, SignatureException,
+      KeyStoreException, IOException, UnrecoverableKeyException {
 
-    	if (hostname == null) {
-    		throw new IllegalArgumentException("Error, 'hostname' is not allowed to be null!");
-    	}
-
-    	if (this.caCert == null || this.caPrivKey == null || this.caPubKey == null) {
-    		throw new RuntimeException(this.getClass() + " wasn't initialized! Got to options 'Dynamic SSL Certs' and create one.");
-    	}
-
-        final KeyPair mykp = this.createKeyPair();
-        final PrivateKey privKey = mykp.getPrivate();
-        final PublicKey pubKey = mykp.getPublic();
-
-		X500NameBuilder namebld = new X500NameBuilder(BCStyle.INSTANCE); 
-		namebld.addRDN(BCStyle.CN, hostname);
-		namebld.addRDN(BCStyle.OU, "Zed Attack Proxy Project");
-		namebld.addRDN(BCStyle.O, "OWASP");
-		namebld.addRDN(BCStyle.C, "xx");
-		namebld.addRDN(BCStyle.EmailAddress, "owasp-zed-attack-proxy@lists.owasp.org");
-
-		X509v3CertificateBuilder certGen = new JcaX509v3CertificateBuilder (
-				new X509CertificateHolder(caCert.getEncoded()).getSubject(),
-				BigInteger.valueOf(serial.getAndIncrement()),
-				new Date(System.currentTimeMillis() - 1000L * 60 * 60 * 24 * 30),
-				new Date(System.currentTimeMillis() + 100*(1000L * 60 * 60 * 24 * 30)),
-				namebld.build(),
-				pubKey
-			);
-
-		certGen.addExtension(X509Extension.subjectKeyIdentifier, false, new SubjectKeyIdentifierStructure(pubKey));
-		certGen.addExtension(X509Extension.basicConstraints, false, new BasicConstraints(false));
-
-		ContentSigner sigGen;
-		try {
-			sigGen = new JcaContentSignerBuilder("SHA1WithRSAEncryption").setProvider("BC").build(caPrivKey);
-		} catch (OperatorCreationException e) {
-			throw new CertificateException(e);
-		}
-		final X509Certificate cert = new JcaX509CertificateConverter().setProvider("BC").getCertificate(certGen.build(sigGen));
-        cert.checkValidity(new Date());
-        cert.verify(caPubKey);
-
-        final Certificate[] chain = new Certificate[2];
-        chain[1] = this.caCert;
-        chain[0] = cert;
-        userKs.setKeyEntry(hostname, privKey, PASSPHRASE, chain);
-        return userKs;
+    if (hostname == null) {
+      throw new IllegalArgumentException(
+          "Error, 'hostname' is not allowed to be null!");
     }
 
-	/**
-	 * Generates an 1024 bit RSA key pair using SHA1PRNG.
-	 *
-	 * Thoughts: 2048 takes much longer time on older CPUs.
-	 * And for almost every client, 1024 is sufficient.
-	 *
-	 * @return
-	 * @throws NoSuchAlgorithmException
-	 */
-	private KeyPair createKeyPair() throws NoSuchAlgorithmException {
-		final KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
-		final SecureRandom random  = SecureRandom.getInstance("SHA1PRNG");
-		random.setSeed(Long.toString(System.currentTimeMillis()).getBytes());
-		keyGen.initialize(1024, random);
-		final KeyPair keypair = keyGen.generateKeyPair();
-		return keypair;
-	}
+    if (this.caCert == null || this.caPrivKey == null || this.caPubKey == null) {
+      throw new RuntimeException(
+          this.getClass()
+              + " wasn't initialized! Got to options 'Dynamic SSL Certs' and create one.");
+    }
 
-	/**
-	 * @return return the current {@link SslCertificateService}
-	 */
-	public static FixedSslCertificateService getService() {
-		return singleton;
-	}
+    final KeyPair mykp = this.createKeyPair();
+    final PrivateKey privKey = mykp.getPrivate();
+    final PublicKey pubKey = mykp.getPublic();
+
+    X500NameBuilder namebld = new X500NameBuilder(BCStyle.INSTANCE);
+    namebld.addRDN(BCStyle.CN, hostname);
+    namebld.addRDN(BCStyle.OU, "Zed Attack Proxy Project");
+    namebld.addRDN(BCStyle.O, "OWASP");
+    namebld.addRDN(BCStyle.C, "xx");
+    namebld.addRDN(BCStyle.EmailAddress,
+        "owasp-zed-attack-proxy@lists.owasp.org");
+
+    X509v3CertificateBuilder certGen = new JcaX509v3CertificateBuilder(
+        new X509CertificateHolder(caCert.getEncoded()).getSubject(),
+        BigInteger.valueOf(serial.getAndIncrement()), new Date(
+            System.currentTimeMillis() - 1000L * 60 * 60 * 24 * 30), new Date(
+            System.currentTimeMillis() + 100 * (1000L * 60 * 60 * 24 * 30)),
+        namebld.build(), pubKey);
+
+    certGen.addExtension(X509Extension.subjectKeyIdentifier, false,
+        new SubjectKeyIdentifierStructure(pubKey));
+    certGen.addExtension(X509Extension.basicConstraints, false,
+        new BasicConstraints(false));
+
+    ContentSigner sigGen;
+    try {
+      sigGen = new JcaContentSignerBuilder("SHA1WithRSAEncryption")
+          .setProvider("BC").build(caPrivKey);
+    } catch (OperatorCreationException e) {
+      throw new CertificateException(e);
+    }
+    final X509Certificate cert = new JcaX509CertificateConverter().setProvider(
+        "BC").getCertificate(certGen.build(sigGen));
+    cert.checkValidity(new Date());
+    cert.verify(caPubKey);
+
+    final Certificate[] chain = new Certificate[2];
+    chain[1] = this.caCert;
+    chain[0] = cert;
+    userKs.setKeyEntry(hostname, privKey, PASSPHRASE, chain);
+    return userKs;
+  }
+
+  /**
+   * Generates an 1024 bit RSA key pair using SHA1PRNG.
+   *
+   * Thoughts: 2048 takes much longer time on older CPUs. And for almost every
+   * client, 1024 is sufficient.
+   *
+   * @return
+   * @throws NoSuchAlgorithmException
+   */
+  private KeyPair createKeyPair() throws NoSuchAlgorithmException {
+    final KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
+    final SecureRandom random = SecureRandom.getInstance("SHA1PRNG");
+    random.setSeed(Long.toString(System.currentTimeMillis()).getBytes());
+    keyGen.initialize(1024, random);
+    final KeyPair keypair = keyGen.generateKeyPair();
+    return keypair;
+  }
+
+  /**
+   * @return return the current {@link SslCertificateService}
+   */
+  public static FixedSslCertificateService getService() {
+    return singleton;
+  }
+
+  public KeyStore getHostKeyStore() {
+    return this.userKs;
+  }
 
 }

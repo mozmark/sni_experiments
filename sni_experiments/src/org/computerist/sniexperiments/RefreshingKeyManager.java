@@ -1,92 +1,94 @@
 package org.computerist.sniexperiments;
 
 import java.net.Socket;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.security.PrivateKey;
+import java.security.UnrecoverableKeyException;
 import java.security.cert.X509Certificate;
 
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.X509KeyManager;
 
 /*
- * At the moment, this just dumps output on calls and allows for alias
- * switching. This will allow itself to refresh its mgr attr when new items
- * are added to a keystore.
+ * A KeyManager which can refresh itself and an associated SSLContext when its keystore is modified
  */
 public class RefreshingKeyManager implements X509KeyManager {
 
   private X509KeyManager mgr;
   private String alias;
+  private KeyStore ks;
+  private char[] passphrase;
+  private SSLContext sslContext;
 
-  public RefreshingKeyManager(X509KeyManager mgr) {
-    this.mgr = mgr;
+  public RefreshingKeyManager(KeyStore ks, char[] passphrase,
+      SSLContext sslContext) throws UnrecoverableKeyException,
+      KeyManagementException, KeyStoreException, NoSuchAlgorithmException {
+    this.ks = ks;
+    this.passphrase = passphrase;
+    this.sslContext = sslContext;
+    this.refresh();
+  }
+
+  void refresh() throws UnrecoverableKeyException, KeyStoreException,
+      NoSuchAlgorithmException, KeyManagementException {
+    KeyManagerFactory keyFactory = KeyManagerFactory.getInstance("SunX509");
+    keyFactory.init(this.ks, this.passphrase);
+
+    KeyManager[] managers = { this };
+    sslContext.init(managers, null, null);
+    this.mgr = (X509KeyManager) keyFactory.getKeyManagers()[0];
   }
 
   @Override
   public String chooseClientAlias(String[] arg0, Principal[] arg1, Socket arg2) {
-    System.out.println("chooseClientlAlias: " + arg0);
-    if (null != arg1) {
-      for (Principal principal : arg1) {
-        System.out.println("  Principal: " + principal);
-      }
-    }
     return mgr.chooseClientAlias(arg0, arg1, arg2);
   }
 
   @Override
   public String chooseServerAlias(String arg0, Principal[] arg1, Socket arg2) {
-    System.out.println("chooseServerAlias: " + arg0);
-    if (null != arg1) {
-      for (Principal principal : arg1) {
-        System.out.println("  Principal: " + principal);
-      }
-    }
     String serverAlias = mgr.chooseServerAlias(arg0, arg1, arg2);
-    if(null!=serverAlias) {
-      System.out.println("Switching aliases");
+    // all of our certificates are created with the same way in the same
+    // keystore.
+    // This allows us to trick the consumer into accepting whichever alias
+    // suits us:
+    if (null != serverAlias) {
       serverAlias = this.alias;
     }
-    System.out.println("server alias is: "+serverAlias);
     return serverAlias;
   }
 
   @Override
   public X509Certificate[] getCertificateChain(String arg0) {
-    System.out.println("getting chain for " + arg0);
     X509Certificate[] certs = mgr.getCertificateChain(arg0);
-    for(X509Certificate cert : certs) {
-      System.out.println(cert);
-    }
     return certs;
   }
 
   @Override
   public String[] getClientAliases(String keyType, Principal[] issuers) {
-    System.out.println("getClientAliases " + keyType);
     return mgr.getClientAliases(keyType, issuers);
   }
 
   @Override
   public PrivateKey getPrivateKey(String alias) {
-    System.out.println("getPrivateKey " + alias);
     return mgr.getPrivateKey(alias);
   }
 
   @Override
   public String[] getServerAliases(String keyType, Principal[] issuers) {
-    System.out.println("getServerAliases: " + keyType);
-    if (null != issuers) {
-      for (Principal principal : issuers) {
-        System.out.println("  Principal: " + principal);
-      }
-    }
     return mgr.getServerAliases(keyType, issuers);
   }
 
   public void switchAlias(String hostName) {
     this.alias = hostName;
   }
-  
-  public String getAlias(){
+
+  public String getAlias() {
     return this.alias;
   }
 }
