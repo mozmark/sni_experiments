@@ -56,6 +56,7 @@ public class SNITerminator {
       Thread serverThread = new Thread(new Runnable() {
         @Override
         public void run() {
+          serverRunning = true;
           while (serverRunning) {
             try {
               final SSLSocket sslSocket = (SSLSocket) sslServerSocket.accept();
