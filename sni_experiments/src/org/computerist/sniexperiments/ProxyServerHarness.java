@@ -26,7 +26,7 @@ public class ProxyServerHarness {
       String ZAP_CA = "";
       InetAddress listenAddress = Inet4Address.getByName("0.0.0.0");
       int listenPort = 8443;
-      InetAddress proxyAddress = Inet4Address.getLocalHost();
+      InetAddress proxyAddress = Inet4Address.getByName("192.168.0.14");
       int proxyPort = 8080;
 
       KeyStore caks = ZAPSslToolsWrapper.string2Keystore(ZAP_CA);
@@ -41,11 +41,11 @@ public class ProxyServerHarness {
       SSLSocketFactory clientSSLSocketFactory = clientContext
           .getSocketFactory();
 
-      SNITerminator terminator = new SNITerminator(caks, listenAddress,
-          listenPort, new ProxyForwarder(proxyAddress, proxyPort,
-              clientSSLSocketFactory));
+      SNITerminator terminator = new SNITerminator(caks,
+          ZAPSslToolsWrapper.getPassphrase(), listenAddress, listenPort,
+          new ProxyForwarder(proxyAddress, proxyPort, clientSSLSocketFactory));
       terminator.start();
-      
+
     } catch (UnknownHostException uhe) {
       uhe.printStackTrace();
     } catch (KeyStoreException e) {

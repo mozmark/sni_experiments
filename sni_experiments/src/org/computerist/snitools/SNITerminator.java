@@ -1,5 +1,6 @@
 package org.computerist.snitools;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
@@ -23,9 +24,11 @@ public class SNITerminator {
   private int listenPort;
   private Forwarder forwarder;
   private KeyStore caks;
+  private char[] keyStorePass;
 
-  public SNITerminator(KeyStore keyStore, InetAddress listenAddress,
+  public SNITerminator(KeyStore keyStore, char[] keyStorePass, InetAddress listenAddress,
       int listenPort, Forwarder forwarder) {
+    this.keyStorePass = keyStorePass;
     this.listenAddress = listenAddress;
     this.listenPort = listenPort;
     this.forwarder = forwarder;
@@ -41,9 +44,7 @@ public class SNITerminator {
       KeyStore ks = scs.getHostKeyStore();
 
       SSLContext sslContext = SSLContext.getInstance("TLS");
-      // TODO: Passphrase should be passed in, the following is a bug
-      RefreshingKeyManager mgr = new RefreshingKeyManager(ks,
-    		  ZAPSslToolsWrapper.getPassphrase(), sslContext);
+      RefreshingKeyManager mgr = new RefreshingKeyManager(ks, keyStorePass, sslContext);
 
       SSLServerSocketFactory sslServerSocketFactory = sslContext
           .getServerSocketFactory();
@@ -84,7 +85,20 @@ public class SNITerminator {
 
         String host = mgr.getAlias();
 
-        forwarder.forward(serverIn, serverOut, host);
+        Tidier tidier = new Tidier(){
+          @Override
+          public void tidyUp() {
+            if(null!=sslSocket && !sslSocket.isClosed()) {
+              try {
+                sslSocket.close();
+              } catch (IOException e) {
+                e.printStackTrace();
+              }
+            }
+          }
+        };
+        
+        forwarder.forward(serverIn, serverOut, host, tidier);
       }
     } catch (Exception exception) {
       exception.printStackTrace();

@@ -21,7 +21,7 @@ public class ProxyForwarder extends BaseStreamForwarder{
   }
 
   @Override
-  public void forward(InputStream serverIn, OutputStream serverOut, String host) {
+  public void forward(InputStream serverIn, OutputStream serverOut, String host, Tidier serverTidier) {
     
     try {
     Socket plainSocket = ProxyConnectSocketFactory.GetSocket(host,
@@ -40,10 +40,13 @@ public class ProxyForwarder extends BaseStreamForwarder{
             socket.close();
           } catch (IOException e) {
             e.printStackTrace();
+          } finally {
+            if(null != serverTidier) {
+              serverTidier.tidyUp();
+            }
           }
         }
       }
-      
     };
     connectStreams(serverIn, serverOut, clientIn, clientOut, tidier);
     } catch (IOException e1) {

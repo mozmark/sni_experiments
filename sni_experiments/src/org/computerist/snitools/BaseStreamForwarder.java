@@ -19,7 +19,6 @@ public abstract class BaseStreamForwarder implements Forwarder {
             clientOut.write(buf, 0, read);
           }
         } catch (IOException e) {
-          e.printStackTrace();
         } finally {
           tidier.tidyUp();
         }

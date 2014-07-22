@@ -24,8 +24,9 @@ public class TCPServerHarness {
 
       KeyStore caks = ZAPSslToolsWrapper.string2Keystore(ZAP_CA);
 
-      SNITerminator terminator = new SNITerminator(caks, listenAddress,
-          listenPort, new SingleTCPForwarder(serverAddress, serverPort));
+      SNITerminator terminator = new SNITerminator(caks,
+          ZAPSslToolsWrapper.getPassphrase(), listenAddress, listenPort,
+          new SingleTCPForwarder(serverAddress, serverPort));
       terminator.start();
 
     } catch (UnknownHostException uhe) {

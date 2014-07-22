@@ -18,7 +18,7 @@ public class SingleTCPForwarder extends BaseStreamForwarder {
 
   @Override
   public void forward(InputStream inputStream, OutputStream outputStream,
-      String host) {
+      String host, Tidier serverTidier) {
     try {
       Socket socket = new Socket(this.serverAddress, this.serverPort);
       Tidier tidier = new Tidier(){
@@ -29,6 +29,10 @@ public class SingleTCPForwarder extends BaseStreamForwarder {
               socket.close();
             } catch (IOException e) {
               e.printStackTrace();
+            } finally {
+              if(null != serverTidier) {
+                serverTidier.tidyUp();
+              }
             }
           }
         }
