@@ -26,7 +26,7 @@ public class ProxyServerHarness {
       String ZAP_CA = "";
       InetAddress listenAddress = Inet4Address.getByName("0.0.0.0");
       int listenPort = 8443;
-      InetAddress proxyAddress = Inet4Address.getByName("192.168.0.14");
+      InetAddress proxyAddress = Inet4Address.getLocalHost();
       int proxyPort = 8080;
 
       KeyStore caks = ZAPSslToolsWrapper.string2Keystore(ZAP_CA);
