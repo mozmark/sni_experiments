@@ -40,7 +40,7 @@ public class ZAPSNITerminator {
       SSLSocketFactory clientSSLSocketFactory = clientContext
           .getSocketFactory();
 
-      SNITerminator terminator = new SNITerminator(caks,
+      terminator = new SNITerminator(caks,
           ZAPSslToolsWrapper.getService().getPassphrase(), listenAddress, serverPort,
           new ProxyForwarder(proxyAddress, proxyPort, clientSSLSocketFactory));
       terminator.start();
