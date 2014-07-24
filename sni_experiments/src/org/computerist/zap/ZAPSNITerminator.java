@@ -43,7 +43,6 @@ public class ZAPSNITerminator {
       terminator = new SNITerminator(caks,
           ZAPSslToolsWrapper.getService().getPassphrase(), listenAddress, serverPort,
           new ProxyForwarder(proxyAddress, proxyPort, clientSSLSocketFactory));
-      terminator.start();
 
     } catch (UnknownHostException uhe) {
       uhe.printStackTrace();
